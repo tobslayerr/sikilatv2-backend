@@ -1,0 +1,361 @@
+// ============================================================================
+// KONFIGURASI DATABASE
+// ============================================================================
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-1.0.x", "rhel-openssl-1.1.x", "debian-openssl-1.1.x"]
+}
+
+datasource db {
+  provider = "postgresql" // Ubah ke "mysql" jika menggunakan MySQL
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMERATIONS (Daftar Pilihan Pasti)
+// ============================================================================
+enum Role {
+  Pelapor
+  Teknisi
+  Pengawas_Admin
+  Pengawas_IT
+  Pengawas_Sarpras
+  Admin
+  Super_Admin
+}
+
+enum StatusVerifikasi {
+  terverifikasi
+  belum_verifikasi
+}
+
+enum TipeKategori {
+  IT
+  Non_IT
+}
+
+enum StatusBarang {
+  Tersedia
+  Dipinjam
+  Rusak
+  Dalam_Perbaikan
+  Habis
+}
+
+enum StatusPeminjaman {
+  Menunggu_Persetujuan
+  Disetujui
+  Ditolak
+  Dipinjam
+  Selesai_Normal      // Sesuai fitur "Validasi Pengembalian Admin"
+  Selesai_Rusak       // Jika dikembalikan dalam keadaan rusak
+  Terlambat
+}
+
+enum StatusAntrean {
+  Menunggu
+  Diberitahu
+  Dibatalkan
+  Selesai
+}
+
+enum StatusLaporan {
+  Menunggu_Persetujuan 
+  Diproses
+  Selesai
+  Butuh_Penggantian
+  Ditolak
+}
+
+enum StatusApproval {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ============================================================================
+// 1. MANAJEMEN PENGGUNA (RBAC & AUTH)
+// ============================================================================
+model User {
+  id                String   @id @default(uuid())
+  namaLengkap       String   @map("nama_lengkap")
+  nomorInduk        String?  @map("nomor_induk") // NIP / NISN
+  username          String   @unique
+  password          String
+  noWa              String?  @map("no_wa")
+  email             String?  @unique
+  role              Role     @default(Pelapor)
+  statusVerifikasi  StatusVerifikasi @default(belum_verifikasi) @map("status_verifikasi")
+  isActive          Boolean  @default(true) @map("is_active") // Untuk fitur Blokir User
+
+  // Relasi Data Master
+  idKelas           String?  @map("id_kelas")
+  kelas             Kelas?   @relation("SiswaKelas", fields: [idKelas], references: [id], onDelete: SetNull)
+  kelasDiwali       Kelas[]  @relation("WaliKelas")
+
+  // Relasi Transaksi (Peminjaman & Pengaduan)
+  peminjaman        Peminjaman[]
+  antrean           AntreanPeminjaman[]
+  
+  laporanDibuat     LaporanKerusakan[] @relation("PelaporLaporan")
+  laporanDitangani  LaporanKerusakan[] @relation("TeknisiLaporan")
+  laporanDiawasi    LaporanKerusakan[] @relation("PengawasLaporan")
+
+  // Relasi Sistem
+  agenda            AgendaKegiatan[]
+  profilRequests    ProfilEditRequest[]
+  auditLogs         AuditLog[]
+
+  dibuatPada        DateTime @default(now()) @map("dibuat_pada")
+
+  @@map("users")
+}
+
+// ============================================================================
+// 2. MASTER DATA PENDIDIKAN
+// ============================================================================
+model Jenjang {
+  id          String  @id @default(uuid())
+  nama        String  @unique 
+  rombelAwal  String  @map("rombel_awal")
+  rombelAkhir String  @map("rombel_akhir")
+  
+  kelas       Kelas[]
+
+  @@map("jenjang")
+}
+
+model Kelas {
+  id          String   @id @default(uuid())
+  idJenjang   String   @map("id_jenjang")
+  jenjang     Jenjang  @relation(fields: [idJenjang], references: [id], onDelete: Cascade)
+  namaKelas   String   @map("nama_kelas") // Contoh: VII A, X IPA 1
+  
+  idWaliKelas String?  @map("id_wali_kelas")
+  waliKelas   User?    @relation("WaliKelas", fields: [idWaliKelas], references: [id], onDelete: SetNull)
+  
+  siswa       User[]   @relation("SiswaKelas")
+
+  @@map("kelas")
+}
+
+// ============================================================================
+// 3. MASTER DATA INVENTARIS (Ternormalisasi V2)
+// ============================================================================
+model JenisBarang {
+  id          String       @id @default(uuid())
+  nama        String       @unique
+  kategori    TipeKategori @default(Non_IT) // Mengatasi redundansi V1
+  
+  inventaris  Inventaris[]
+
+  @@map("jenis_barang")
+}
+
+model LokasiBarang {
+  id          String       @id @default(uuid())
+  nama        String       @unique
+  inventaris  Inventaris[]
+
+  @@map("lokasi_barang")
+}
+
+model SumberBarang {
+  id          String       @id @default(uuid())
+  nama        String       @unique
+  inventaris  Inventaris[]
+
+  @@map("sumber_barang")
+}
+
+model Inventaris {
+  id               String       @id @default(uuid())
+  nomorInventaris  String?      @unique @map("nomor_inventaris")
+  namaBarang       String       @map("nama_barang")
+  deskripsi        String?      @db.Text
+  jumlahTotal      Int          @default(1) @map("jumlah_total")
+  jumlahTersedia   Int          @default(1) @map("jumlah_tersedia")
+  statusBarang     StatusBarang @default(Tersedia) @map("status_barang")
+  
+  qrCode           String?      @unique @map("qr_code") // Integrasi Scanner React Frontend
+  tanggalMasuk     DateTime?    @db.Date @map("tanggal_masuk")
+
+  // Relasi Tepat Sasaran
+  idJenis          String       @map("id_jenis")
+  jenis            JenisBarang  @relation(fields: [idJenis], references: [id], onDelete: Restrict)
+  
+  idLokasi         String?      @map("id_lokasi")
+  lokasi           LokasiBarang? @relation(fields: [idLokasi], references: [id], onDelete: SetNull)
+
+  idSumber         String?      @map("id_sumber")
+  sumber           SumberBarang? @relation(fields: [idSumber], references: [id], onDelete: SetNull)
+
+  fiturTambahan    InventarisFitur[]
+  peminjaman       Peminjaman[]
+  antrean          AntreanPeminjaman[]
+  laporan          LaporanKerusakan[]
+
+  ditambahkanPada  DateTime @default(now()) @map("ditambahkan_pada")
+
+  @@map("inventaris")
+}
+
+model InventarisFitur {
+  id          String     @id @default(uuid())
+  idBarang    String     @map("id_barang")
+  barang      Inventaris @relation(fields: [idBarang], references: [id], onDelete: Cascade)
+  
+  namaFitur   String     @map("nama_fitur")
+  keterangan  String?    @db.Text
+  tipeFitur   String     @default("aman") @map("tipe_fitur")
+  
+  @@map("inventaris_fitur")
+}
+
+// ============================================================================
+// 4. TRANSAKSI (Peminjaman & Pengaduan)
+// ============================================================================
+model Peminjaman {
+  id                  String           @id @default(uuid())
+  idBarang            String           @map("id_barang")
+  barang              Inventaris       @relation(fields: [idBarang], references: [id], onDelete: Restrict)
+  
+  idPeminjam          String           @map("id_peminjam")
+  peminjam            User             @relation(fields: [idPeminjam], references: [id], onDelete: Cascade)
+  
+  tanggalPinjam       DateTime         @default(now()) @map("tanggal_pinjam")
+  tanggalWajibKembali DateTime         @map("tanggal_wajib_kembali") // Support DatePicker Frontend
+  tanggalAktualKembali DateTime?       @map("tanggal_aktual_kembali")
+  
+  keperluan           String           @db.Text
+  status              StatusPeminjaman @default(Menunggu_Persetujuan)
+  
+  catatanPengembalian String?          @db.Text @map("catatan_pengembalian")
+  catatanPenolakan    String?          @db.Text @map("catatan_penolakan")
+
+  @@map("peminjaman")
+}
+
+model AntreanPeminjaman {
+  id           String        @id @default(uuid())
+  idBarang     String        @map("id_barang")
+  barang       Inventaris    @relation(fields: [idBarang], references: [id], onDelete: Cascade)
+  
+  idPeminjam   String        @map("id_peminjam")
+  peminjam     User          @relation(fields: [idPeminjam], references: [id], onDelete: Cascade)
+  
+  keperluan    String        @db.Text
+  status       StatusAntrean @default(Menunggu)
+  tanggalAntri DateTime      @default(now()) @map("tanggal_antri")
+
+  @@map("peminjaman_antrean")
+}
+
+model LaporanKerusakan {
+  id                  String         @id @default(uuid())
+  nomorLaporan        String         @unique @map("nomor_laporan")
+  
+  idBarang            String?        @map("id_barang")
+  barang              Inventaris?    @relation(fields: [idBarang], references: [id], onDelete: SetNull)
+  namaBarangLain      String?        @map("nama_barang_lain") 
+  
+  idPelapor           String         @map("id_pelapor")
+  pelapor             User           @relation("PelaporLaporan", fields: [idPelapor], references: [id], onDelete: Restrict)
+  
+  idTeknisi           String?        @map("id_teknisi")
+  teknisi             User?          @relation("TeknisiLaporan", fields: [idTeknisi], references: [id], onDelete: SetNull)
+  
+  idPengawas          String?        @map("id_pengawas")
+  pengawas            User?          @relation("PengawasLaporan", fields: [idPengawas], references: [id], onDelete: SetNull)
+
+  deskripsiKerusakan  String         @db.Text @map("deskripsi_kerusakan")
+  fotoBukti           String?        @map("foto_bukti") // Support Upload Dropzone 2MB
+  catatanPenanganan   String?        @db.Text @map("catatan_penanganan")
+  status              StatusLaporan  @default(Menunggu_Persetujuan)
+
+  dilaporkanPada      DateTime       @default(now()) @map("dilaporkan_pada")
+  diprosesPada        DateTime?      @map("diproses_pada")
+  diselesaikanPada    DateTime?      @map("diselesaikan_pada")
+
+  @@map("laporan_kerusakan")
+}
+
+// ============================================================================
+// 5. AGENDA & BOOKING (Penggabungan Fasilitas & Kegiatan)
+// ============================================================================
+model TemplateAgenda {
+  id             String           @id @default(uuid())
+  namaTemplate   String           @map("nama_template")
+  uraianKegiatan String           @db.Text @map("uraian_kegiatan")
+  hasilKegiatan  String           @db.Text @map("hasil_kegiatan")
+  
+  agenda         AgendaKegiatan[]
+
+  @@map("template_agenda")
+}
+
+model AgendaKegiatan {
+  id                String          @id @default(uuid())
+  idPenanggungJawab String          @map("id_pj")
+  penanggungJawab   User            @relation(fields: [idPenanggungJawab], references: [id], onDelete: Restrict)
+  
+  idTemplate        String?         @map("id_template")
+  template          TemplateAgenda? @relation(fields: [idTemplate], references: [id], onDelete: SetNull)
+
+  waktuMulai        DateTime        @map("waktu_mulai")
+  waktuSelesai      DateTime        @map("waktu_selesai")
+  posisiRuangan     String          @map("posisi_ruangan") 
+  uraianKegiatan    String          @db.Text @map("uraian_kegiatan")
+  hasilKegiatan     String          @db.Text @map("hasil_kegiatan")
+  
+  objekPengguna     Json?           @map("objek_pengguna") // Disimpan rapi sebagai JSON
+  ringkasan         String?         @db.Text
+  
+  dibuatPada        DateTime        @default(now()) @map("dibuat_pada")
+
+  @@map("agenda_kegiatan")
+}
+
+// ============================================================================
+// 6. SISTEM & AUDIT (Log Terpadu)
+// ============================================================================
+model ProfilEditRequest {
+  id          String         @id @default(uuid())
+  idUser      String         @map("id_pengguna")
+  user        User           @relation(fields: [idUser], references: [id], onDelete: Cascade)
+  
+  dataBaru    Json           @map("data_baru") // Format JSON, persis seperti request Frontend Anda
+  alasan      String         @db.Text
+  status      StatusApproval @default(PENDING)
+  
+  diajukanPada DateTime       @default(now()) @map("diajukan_pada")
+
+  @@map("profil_edit_requests")
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  idUser        String?  @map("id_pengguna")
+  user          User?    @relation(fields: [idUser], references: [id], onDelete: SetNull)
+  
+  aksi          String   // Contoh: "UPDATE_INVENTARIS", "APPROVE_PEMINJAMAN"
+  tabelTerkait  String   @map("tabel_terkait")
+  idDataTerkait String?  @map("id_data_terkait")
+  
+  dataSebelum   Json?    @map("data_sebelum")
+  dataSesudah   Json?    @map("data_sesudah")
+  
+  waktu         DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model Otp {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  kodeOtp   String   @map("kode_otp")
+  expiredAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("otps")
+}
