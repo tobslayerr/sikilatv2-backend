@@ -5,7 +5,7 @@ Dilengkapi dengan sistem keamanan JWT HttpOnly Cookie, Helmet, CORS strict, dan 
 
 ## Base URL
 - **Development:** `http://localhost:5000/api/v1`
-- **Production:** `https://api.smpn6pekalongan.org/api/v1`
+- **Production:** `menyesuaikan`
 - **Swagger UI:** `/api-docs`
 
 ## Authentication & Security
