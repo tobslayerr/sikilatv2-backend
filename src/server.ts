@@ -1,8 +1,13 @@
 import app from './app';
+import { ENV } from './config/env';
 
-// Gunakan port dari Environment Variable (Disediakan otomatis oleh Railway)
-const PORT = process.env.PORT || 5000;
+const PORT = ENV.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`==========================================`);
+  console.log(`🚀 SERVER SIKILAT V2 MENYALA!`);
+  console.log(`🛡️  Security  : Helmet, CORS, Limiter Active`);
+  console.log(`🌐 Mode      : ${ENV.NODE_ENV}`);
+  console.log(`🔗 URL       : http://localhost:${PORT}`);
+  console.log(`==========================================`);
 });
