@@ -47,5 +47,31 @@ export const InventarisService = {
     const qrImageBase64 = await generateQRCode(payload);
     
     return { item, qrImageBase64 };
+  },
+
+  // Update Barang
+  async update(id: string, data: any, file?: Express.Multer.File) {
+    const barang = await prisma.inventaris.findUnique({ where: { id } });
+    if (!barang) throw new Error('Barang tidak ditemukan');
+
+    // Perbaikan TS: Gunakan 'as any' agar TypeScript tidak protes jika kolom foto tidak ada di skema
+    let fotoUrl = (barang as any).foto || null; 
+    if (file) {
+      const { uploadImage } = await import('../config/cloudinary');
+      fotoUrl = await uploadImage(file.buffer, 'sikilat/inventaris');
+    }
+
+    const payload: any = {
+      ...(data.namaBarang && { namaBarang: data.namaBarang }),
+      ...(data.deskripsi !== undefined && { deskripsi: data.deskripsi }),
+      ...(data.jumlahTotal && { jumlahTotal: data.jumlahTotal }),
+      ...(data.idJenis && { idJenis: data.idJenis }),
+      ...(data.idLokasi && { idLokasi: data.idLokasi }),
+    };
+
+    // Jika berhasil upload foto / foto sudah ada, baru masukkan ke payload
+    if (fotoUrl) payload.foto = fotoUrl;
+
+    return prisma.inventaris.update({ where: { id }, data: payload });
   }
 };

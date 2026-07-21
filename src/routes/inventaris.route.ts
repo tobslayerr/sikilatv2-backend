@@ -14,5 +14,6 @@ router.get('/', requireAuth, InventarisController.getAll);
 // Menggunakan upload.single('foto') untuk menerima form-data gambar
 router.post('/', requireAuth, adminOnly, upload.single('foto'), handleUploadError, InventarisController.create);
 router.get('/:id/qr', requireAuth, adminOnly, InventarisController.getQrCode);
+router.put('/:id', requireAuth, adminOnly, upload.single('foto'), handleUploadError, InventarisController.update);
 
 export default router;

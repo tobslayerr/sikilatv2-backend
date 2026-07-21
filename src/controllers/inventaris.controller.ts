@@ -30,5 +30,17 @@ export const InventarisController = {
       const result = await InventarisService.getQrCode(req.params.id as string);
       sendSuccess(res, 200, 'QR Code berhasil di-generate', result);
     } catch (error: any) { sendError(res, 404, error.message); }
+  },
+
+  async update(req: Request, res: Response) {
+    try {
+      // Kita pakai schema yang sama dengan create, tapi gunakan opsi .partial() dari Zod 
+      // karena saat update, tidak semua field wajib diisi.
+      const parsed = inventarisSchema.partial().safeParse(req.body);
+      if (!parsed.success) return sendError(res, 400, 'Validasi Gagal', parsed.error.format());
+
+      const result = await InventarisService.update(req.params.id as string, parsed.data, req.file);
+      sendSuccess(res, 200, 'Data barang berhasil diupdate', result);
+    } catch (error: any) { sendError(res, 400, error.message); }
   }
 };
