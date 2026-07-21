@@ -15,3 +15,12 @@ export const sendError = (res: Response, statusCode: number, message: string, er
     errors,
   });
 };
+
+export const sendPaginatedSuccess = (res: Response, statusCode: number, message: string, data: any[], meta: { total: number, page: number, limit: number, totalPages: number }) => {
+  return res.status(statusCode).json({
+    status: 'success',
+    message,
+    data,
+    meta
+  });
+};
