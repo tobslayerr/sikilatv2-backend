@@ -2,6 +2,7 @@ import authRoute from './routes/auth.route';
 import userRoute from './routes/user.route';
 import inventarisRoute from './routes/inventaris.route';
 import peminjamanRoute from './routes/peminjaman.route';
+import laporanRoute from './routes/laporan.route';
 
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
@@ -39,6 +40,7 @@ app.use('/api/v1/auth', authRoute);
 app.use('/api/v1/users', userRoute);
 app.use('/api/v1/inventaris', inventarisRoute);
 app.use('/api/v1/peminjaman', peminjamanRoute);
+app.use('/api/v1/laporan', laporanRoute);
 
 // ==========================================
 // 2. MAIN ROUTES (WAJIB DI ATAS PENANGKAP 404)
