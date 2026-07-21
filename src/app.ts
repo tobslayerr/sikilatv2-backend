@@ -1,3 +1,5 @@
+import authRoute from './routes/auth.route';
+
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -28,6 +30,9 @@ app.use(cookieParser());
 
 // Limit hanya berlaku untuk prefix /api
 app.use('/api', apiLimiter);
+
+// 2. MAIN ROUTES
+app.use('/api/v1/auth', authRoute);
 
 // ==========================================
 // 2. MAIN ROUTES (WAJIB DI ATAS PENANGKAP 404)
