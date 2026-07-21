@@ -1,4 +1,5 @@
 import authRoute from './routes/auth.route';
+import userRoute from './routes/user.route';
 
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
@@ -33,6 +34,7 @@ app.use('/api', apiLimiter);
 
 // 2. MAIN ROUTES
 app.use('/api/v1/auth', authRoute);
+app.use('/api/v1/users', userRoute);
 
 // ==========================================
 // 2. MAIN ROUTES (WAJIB DI ATAS PENANGKAP 404)
