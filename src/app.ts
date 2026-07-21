@@ -4,6 +4,8 @@ import inventarisRoute from './routes/inventaris.route';
 import peminjamanRoute from './routes/peminjaman.route';
 import laporanRoute from './routes/laporan.route';
 import agendaRoute from './routes/agenda.route';
+import waRoute from './routes/wa.route';
+import statsRoute from './routes/stats.route';
 import { auditLogMiddleware } from './middlewares/audit.middleware';
 
 import express, { Application, Request, Response } from 'express';
@@ -46,10 +48,8 @@ app.use('/api/v1/inventaris', inventarisRoute);
 app.use('/api/v1/peminjaman', peminjamanRoute);
 app.use('/api/v1/laporan', laporanRoute);
 app.use('/api/v1/agenda', agendaRoute);
-
-// ==========================================
-// 2. MAIN ROUTES (WAJIB DI ATAS PENANGKAP 404)
-// ==========================================
+app.use('/api/v1/wa', waRoute);
+app.use('/api/v1/stats', statsRoute);
 
 // Endpoint Health Check Root
 app.get('/', (req: Request, res: Response) => {
