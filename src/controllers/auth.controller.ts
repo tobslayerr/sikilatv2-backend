@@ -1,13 +1,14 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, CookieOptions } from 'express'; // <-- Tambahkan CookieOptions di sini
 import { AuthService } from '../services/auth.service';
 import { registerSchema, loginSchema, otpRequestSchema, resetPasswordSchema } from '../validations/auth.validation';
 import { sendSuccess, sendError } from '../utils/response.util';
 import { ENV } from '../config/env';
 
-const cookieOptions = {
+// Tambahkan tipe : CookieOptions agar TypeScript mengenali literal 'lax' dan 'none'
+const cookieOptions: CookieOptions = {
   httpOnly: true,
   secure: ENV.NODE_ENV === 'production',
-  sameSite: 'strict' as const,
+  sameSite: ENV.NODE_ENV === 'production' ? 'none' : 'lax', 
   maxAge: 24 * 60 * 60 * 1000, // 1 Hari
 };
 
